@@ -2224,9 +2224,9 @@
                     document.getElementById('loginContainer').classList.add('hidden');
                     document.getElementById('appLayout').classList.add('active');
                     
-                    // Update user greeting
-                    const username = localStorage.getItem('username') || 'User';
-                    document.getElementById('userGreeting').textContent = `Welcome, ${username}!`;
+                    // Update user greeting (use displayName to avoid shadowing outer username)
+                    const displayName = localStorage.getItem('username') || 'User';
+                    document.getElementById('userGreeting').textContent = `Welcome, ${displayName}!`;
                     
                     // Initialize chart after login
                     setTimeout(() => {
