@@ -900,7 +900,7 @@ def backtest_strategy():
                     if current['low'] <= position['sl']:
                         # SL hit
                         pnl_points = position['sl'] - position['entry_price']
-                        pnl = pnl_points * lots
+                        pnl = pnl_points * lots * 0.001
                         trades.append({
                             'entry_time': position['entry_time'],
                             'exit_time': current['time'],
@@ -918,7 +918,7 @@ def backtest_strategy():
                     elif current['high'] >= position['target']:
                         # Target hit
                         pnl_points = position['target'] - position['entry_price']
-                        pnl = pnl_points * lots
+                        pnl = pnl_points * lots * 0.001
                         trades.append({
                             'entry_time': position['entry_time'],
                             'exit_time': current['time'],
@@ -938,7 +938,7 @@ def backtest_strategy():
                     if current['high'] >= position['sl']:
                         # SL hit
                         pnl_points = position['entry_price'] - position['sl']
-                        pnl = pnl_points * lots
+                        pnl = pnl_points * lots * 0.001
                         trades.append({
                             'entry_time': position['entry_time'],
                             'exit_time': current['time'],
@@ -956,7 +956,7 @@ def backtest_strategy():
                     elif current['low'] <= position['target']:
                         # Target hit
                         pnl_points = position['entry_price'] - position['target']
-                        pnl = pnl_points * lots
+                        pnl = pnl_points * lots * 0.001
                         trades.append({
                             'entry_time': position['entry_time'],
                             'exit_time': current['time'],
@@ -1010,7 +1010,7 @@ def backtest_strategy():
                 pnl_points = exit_price - position['entry_price']
             else:
                 pnl_points = position['entry_price'] - exit_price
-            pnl = pnl_points * lots
+            pnl = pnl_points * lots * 0.001
             
             trades.append({
                 'entry_time': position['entry_time'],
