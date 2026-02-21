@@ -39,7 +39,26 @@ def calculate_ema(data, period):
     return ema
 
 
-def prepare_candle_data_with_ema(df, ema_periods=[9, 21, 50]):
+def calculate_rsi(data, period=14):
+    """Relative Strength Index (RSI) calculate karta hai"""
+    if isinstance(data, list):
+        data = pd.Series(data)
+    
+    # Calculate price changes
+    delta = data.diff()
+    
+    # Separate gains and losses
+    gain = (delta.where(delta > 0, 0)).rolling(window=period).mean()
+    loss = (-delta.where(delta < 0, 0)).rolling(window=period).mean()
+    
+    # Calculate RS and RSI
+    rs = gain / loss
+    rsi = 100 - (100 / (1 + rs))
+    
+    return rsi
+
+
+def prepare_candle_data_with_ema(df, ema_periods=[9, 21, 50], rsi_period=14, include_rsi=False):
     """Candle data ko format karta hai aur EMA add karta hai"""
     # Get close prices
     if 'Close' in df.columns:
@@ -57,6 +76,12 @@ def prepare_candle_data_with_ema(df, ema_periods=[9, 21, 50]):
             ema_data[f'EMA_{period}'] = ema_values.tolist()
         else:
             ema_data[f'EMA_{period}'] = [None] * len(df)
+    
+    # Calculate RSI if requested
+    rsi_data = {}
+    if include_rsi:
+        rsi_values = calculate_rsi(close_prices, rsi_period)
+        rsi_data['RSI'] = rsi_values.tolist()
     
     # Format candle data for frontend
     candles = []
@@ -92,12 +117,20 @@ def prepare_candle_data_with_ema(df, ema_periods=[9, 21, 50]):
             if idx < len(ema_values):
                 candle[ema_key.lower()] = ema_values[idx] if ema_values[idx] is not None else None
         
+        # Add RSI values if requested
+        if include_rsi:
+            for rsi_key, rsi_values in rsi_data.items():
+                if idx < len(rsi_values):
+                    candle[rsi_key.lower()] = rsi_values[idx] if rsi_values[idx] is not None else None
+        
         candles.append(candle)
     
     return {
         'candles': candles,
         'ema_periods': ema_periods,
-        'total_candles': len(candles)
+        'total_candles': len(candles),
+        'rsi_period': rsi_period if include_rsi else None,
+        'rsi_enabled': include_rsi
     }
 
 
@@ -112,6 +145,10 @@ def get_candles():
         
         ema_periods_str = request.args.get('ema_periods', '9,21,50')
         ema_periods = [int(p.strip()) for p in ema_periods_str.split(',')]
+        
+        # RSI parameters
+        rsi_period = int(request.args.get('rsi_period', 14))
+        include_rsi = request.args.get('include_rsi', 'false').lower() == 'true'
         
         # Fetch historical data
         historical_data = client.get_historical_data(
@@ -129,8 +166,8 @@ def get_candles():
         
         df = historical_data['dataframe']
         
-        # Prepare data with EMA
-        result = prepare_candle_data_with_ema(df, ema_periods)
+        # Prepare data with EMA and RSI
+        result = prepare_candle_data_with_ema(df, ema_periods, rsi_period, include_rsi)
         
         return jsonify({
             'success': True,
@@ -742,6 +779,12 @@ def backtest_strategy():
         days = int(request.args.get('days', 30))  # Default 30 days
         timeframe = request.args.get('timeframe', '5m')  # Default 5 minutes
         
+        # RSI parameters
+        rsi_period = int(request.args.get('rsi_period', 14))  # Default RSI period 14
+        rsi_overbought = float(request.args.get('rsi_overbought', 60))  # Default overbought 60
+        rsi_oversold = float(request.args.get('rsi_oversold', 40))  # Default oversold 40
+        use_rsi_filter = request.args.get('use_rsi_filter', 'false').lower() == 'true'  # Default false
+        
         # Validate inputs - only check for positive days, no upper limit
         if days <= 0:
             return jsonify({
@@ -752,6 +795,8 @@ def backtest_strategy():
         print(f"📊 Starting professional backtest for {symbol}")
         print(f"   Parameters: {days} days, {timeframe} timeframe, Lots: {lots}, SL: {sl_points}, Target: {target_points}")
         print(f"   EMA: ({ema9}, {ema21}, {ema50}), Exchange: {exchange}")
+        if use_rsi_filter:
+            print(f"   RSI Filter: Period={rsi_period}, Overbought={rsi_overbought}, Oversold={rsi_oversold}")
         
         all_candles = []
         
@@ -833,6 +878,11 @@ def backtest_strategy():
         ema21_values = calculate_ema(pd.Series(closes), ema21).tolist()
         ema50_values = calculate_ema(pd.Series(closes), ema50).tolist()
         
+        # Calculate RSI if filter is enabled
+        rsi_values = []
+        if use_rsi_filter:
+            rsi_values = calculate_rsi(pd.Series(closes), rsi_period).tolist()
+        
         # Add EMAs to candles with dynamic keys
         for i, candle in enumerate(all_candles):
             candle[f'ema_{ema9}'] = ema9_values[i] if i < len(ema9_values) else None
@@ -845,6 +895,10 @@ def backtest_strategy():
                 candle['ema_21'] = candle[f'ema_{ema21}']
             if ema50 == 50:
                 candle['ema_50'] = candle[f'ema_{ema50}']
+            
+            # Add RSI values if filter is enabled
+            if use_rsi_filter and i < len(rsi_values):
+                candle['rsi'] = rsi_values[i]
         
         # Run backtest
         trades = []
@@ -977,30 +1031,60 @@ def backtest_strategy():
                 # Buy signal: EMA9 crosses above both EMA21 and EMA50
                 # Previous: EMA9 was NOT above both, Now: EMA9 is above both
                 if not ema9_above_both_prev and ema9_above_both_now:
-                    entry_price = current_price
-                    position = {
-                        'side': 'buy',
-                        'entry_price': entry_price,
-                        'entry_time': current['time'],
-                        'sl': entry_price - sl_points,
-                        'target': entry_price + target_points
-                    }
-                    print(f"   📈 BUY Signal at {entry_price:.2f} | SL: {position['sl']:.2f} | Target: {position['target']:.2f}")
-                    total_trades += 1
+                    # Apply RSI filter if enabled
+                    rsi_filter_pass = True
+                    if use_rsi_filter:
+                        current_rsi = current.get('rsi')
+                        if current_rsi is None:
+                            rsi_filter_pass = False
+                        else:
+                            # Check if RSI is NOT between overbought and oversold levels
+                            # Entry only when RSI <= oversold OR RSI >= overbought
+                            if rsi_oversold < current_rsi < rsi_overbought:
+                                rsi_filter_pass = False
+                                print(f"   🚫 BUY signal blocked by RSI filter: RSI={current_rsi:.2f} (between {rsi_oversold} and {rsi_overbought})")
+                    
+                    if rsi_filter_pass:
+                        entry_price = current_price
+                        position = {
+                            'side': 'buy',
+                            'entry_price': entry_price,
+                            'entry_time': current['time'],
+                            'sl': entry_price - sl_points,
+                            'target': entry_price + target_points
+                        }
+                        rsi_info = f" | RSI: {current.get('rsi', 'N/A'):.2f}" if use_rsi_filter else ""
+                        print(f"   📈 BUY Signal at {entry_price:.2f} | SL: {position['sl']:.2f} | Target: {position['target']:.2f}{rsi_info}")
+                        total_trades += 1
                 
                 # Sell signal: EMA9 crosses below both EMA21 and EMA50
                 # Previous: EMA9 was NOT below both, Now: EMA9 is below both
                 elif not ema9_below_both_prev and ema9_below_both_now:
-                    entry_price = current_price
-                    position = {
-                        'side': 'sell',
-                        'entry_price': entry_price,
-                        'entry_time': current['time'],
-                        'sl': entry_price + sl_points,
-                        'target': entry_price - target_points
-                    }
-                    print(f"   📉 SELL Signal at {entry_price:.2f} | SL: {position['sl']:.2f} | Target: {position['target']:.2f}")
-                    total_trades += 1
+                    # Apply RSI filter if enabled
+                    rsi_filter_pass = True
+                    if use_rsi_filter:
+                        current_rsi = current.get('rsi')
+                        if current_rsi is None:
+                            rsi_filter_pass = False
+                        else:
+                            # Check if RSI is NOT between overbought and oversold levels
+                            # Entry only when RSI <= oversold OR RSI >= overbought
+                            if rsi_oversold < current_rsi < rsi_overbought:
+                                rsi_filter_pass = False
+                                print(f"   🚫 SELL signal blocked by RSI filter: RSI={current_rsi:.2f} (between {rsi_oversold} and {rsi_overbought})")
+                    
+                    if rsi_filter_pass:
+                        entry_price = current_price
+                        position = {
+                            'side': 'sell',
+                            'entry_price': entry_price,
+                            'entry_time': current['time'],
+                            'sl': entry_price + sl_points,
+                            'target': entry_price - target_points
+                        }
+                        rsi_info = f" | RSI: {current.get('rsi', 'N/A'):.2f}" if use_rsi_filter else ""
+                        print(f"   📉 SELL Signal at {entry_price:.2f} | SL: {position['sl']:.2f} | Target: {position['target']:.2f}{rsi_info}")
+                        total_trades += 1
         
         # Close any open position at the end
         if position and all_candles:
@@ -1059,6 +1143,12 @@ def backtest_strategy():
                 'ema9': ema9,
                 'ema21': ema21,
                 'ema50': ema50
+            },
+            'rsi_settings': {
+                'enabled': use_rsi_filter,
+                'period': rsi_period,
+                'overbought': rsi_overbought,
+                'oversold': rsi_oversold
             },
             'total_trades': len(trades),  # Completed trades only
             'total_signals': total_trades,  # All entry signals (including open positions)
