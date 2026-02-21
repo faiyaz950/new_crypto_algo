@@ -1812,9 +1812,9 @@
                                 </div>
                             </div>
                             
-                            <!-- RSI Settings -->
+                            <!-- RSI Parameters Section -->
                             <div style="margin-top: 20px; padding: 15px; background: linear-gradient(135deg, #fef3c7 0%, #ffffff 100%); border-radius: 12px; border: 2px solid #f59e0b;">
-                                <h4 style="font-size: 14px; font-weight: 700; color: #92400e; margin-bottom: 12px;">📈 RSI Filter Settings</h4>
+                                <h4 style="font-size: 14px; font-weight: 700; color: #374151; margin-bottom: 12px;">📈 RSI Filter Settings (Optional)</h4>
                                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px;">
                                     <div class="param-item">
                                         <label style="display: flex; align-items: center; gap: 8px;">
@@ -1824,21 +1824,21 @@
                                     </div>
                                     <div class="param-item">
                                         <label>RSI Period</label>
-                                        <input type="number" id="backtestPageRSIPeriod" value="14" min="2" max="50" step="1" placeholder="14">
+                                        <input type="number" id="backtestPageRSIPeriod" value="14" min="1" max="50" placeholder="14">
                                     </div>
                                     <div class="param-item">
                                         <label>Overbought Level</label>
-                                        <input type="number" id="backtestPageRSIOverbought" value="60" min="50" max="100" step="1" placeholder="60">
+                                        <input type="number" id="backtestPageRSIOverbought" value="60" min="50" max="100" placeholder="60">
                                     </div>
                                     <div class="param-item">
                                         <label>Oversold Level</label>
-                                        <input type="number" id="backtestPageRSIOversold" value="40" min="0" max="50" step="1" placeholder="40">
+                                        <input type="number" id="backtestPageRSIOversold" value="40" min="0" max="50" placeholder="40">
                                     </div>
                                 </div>
-                                <p style="font-size: 11px; color: #92400e; margin-top: 8px; font-style: italic;">
-                                    💡 Trades will be blocked when RSI is between oversold and overbought levels
+                                <p style="font-size: 11px; color: #6b7280; margin-top: 8px; line-height: 1.4;">
+                                    💡 <strong>RSI Filter:</strong> Trades execute only when RSI ≤ Oversold OR RSI ≥ Overbought. 
+                                    Trades blocked when RSI is between oversold and overbought levels.
                                 </p>
-                            </div>
                             </div>
                             <button class="btn-primary" onclick="runBacktestFromPage()" style="padding: 12px 24px; font-size: 16px;">
                                 📊 Run Backtest
@@ -3113,13 +3113,11 @@
                 if (loadingDiv) loadingDiv.style.display = 'none';
                 if (data.success) {
                     const emaInfo = data.ema_periods ? 'EMA(' + data.ema_periods.ema9 + ',' + data.ema_periods.ema21 + ',' + data.ema_periods.ema50 + ')' : '';
-                    const rsiInfo = data.rsi_settings && data.rsi_settings.enabled ? 
-                        'RSI(' + data.rsi_settings.period + ', OB:' + data.rsi_settings.overbought + ', OS:' + data.rsi_settings.oversold + ')' : '';
-                    const strategyInfo = emaInfo + (rsiInfo ? ' | ' + rsiInfo : '');
+                    const rsiInfo = data.rsi_settings && data.rsi_settings.enabled ? 'RSI(' + data.rsi_settings.period + ',' + data.rsi_settings.overbought + ',' + data.rsi_settings.oversold + ')' : '';
                     const lotsLabel = (data.lots && data.lots !== 1) ? ' (' + data.lots + ' lots)' : '';
                     var daysSub = (data.days_requested != null && data.days_covered != null && data.days_covered < data.days_requested) ? ('of ' + data.days_requested + ' requested · ' + (data.total_candles || 0) + ' candles') : ((data.total_candles || 0) + ' candles');
                     var daysLimitedNote = (data.days_requested != null && data.days_covered != null && data.days_covered < data.days_requested) ? '<div style="font-size: 10px; color: #b45309; margin-top: 4px;">Exchange limited history for this timeframe</div>' : '';
-                    statsDiv.innerHTML = '<div style="padding: 15px; background: white; border-radius: 8px; border: 1px solid #e5e7eb;"><div style="font-size: 11px; color: #6b7280; margin-bottom: 5px;">Completed Trades</div><div style="font-size: 24px; font-weight: 700; color: #374151;">' + data.total_trades + '</div>' + (data.total_signals ? '<div style="font-size: 10px; color: #9ca3af; margin-top: 5px;">' + data.total_signals + ' signals</div>' : '') + (strategyInfo ? '<div style="font-size: 10px; color: #9ca3af; margin-top: 3px;">' + strategyInfo + '</div>' : '') + '</div><div style="padding: 15px; background: white; border-radius: 8px; border: 1px solid #e5e7eb;"><div style="font-size: 11px; color: #6b7280; margin-bottom: 5px;">Win Rate</div><div style="font-size: 24px; font-weight: 700; color: #10b981;">' + data.win_rate + '%</div></div><div style="padding: 15px; background: white; border-radius: 8px; border: 1px solid #e5e7eb;"><div style="font-size: 11px; color: #6b7280; margin-bottom: 5px;">Winning</div><div style="font-size: 24px; font-weight: 700; color: #10b981;">' + data.winning_trades + '</div>' + (data.target_hits !== undefined ? '<div style="font-size: 10px; color: #9ca3af;">Target: ' + data.target_hits + '</div>' : '') + '</div><div style="padding: 15px; background: white; border-radius: 8px; border: 1px solid #e5e7eb;"><div style="font-size: 11px; color: #6b7280; margin-bottom: 5px;">Losing</div><div style="font-size: 24px; font-weight: 700; color: #ef4444;">' + data.losing_trades + '</div>' + (data.sl_hits !== undefined ? '<div style="font-size: 10px; color: #9ca3af;">SL: ' + data.sl_hits + '</div>' : '') + '</div><div style="padding: 15px; background: white; border-radius: 8px; border: 1px solid #e5e7eb;"><div style="font-size: 11px; color: #6b7280; margin-bottom: 5px;">Total Profit' + lotsLabel + '</div><div style="font-size: 24px; font-weight: 700; color: ' + (data.total_profit >= 0 ? '#10b981' : '#ef4444') + ';">' + (data.total_profit >= 0 ? '+' : '') + data.total_profit.toFixed(2) + '</div></div>';<div style="padding: 15px; background: white; border-radius: 8px; border: 1px solid #e5e7eb;"><div style="font-size: 11px; color: #6b7280; margin-bottom: 5px;">Days (data used)</div><div style="font-size: 20px; font-weight: 700;">' + (data.days_covered != null ? data.days_covered : (data.days_requested || days)) + '</div><div style="font-size: 10px; color: #9ca3af;">' + daysSub + '</div>' + daysLimitedNote + '</div>';
+                    statsDiv.innerHTML = '<div style="padding: 15px; background: white; border-radius: 8px; border: 1px solid #e5e7eb;"><div style="font-size: 11px; color: #6b7280; margin-bottom: 5px;">Completed Trades</div><div style="font-size: 24px; font-weight: 700; color: #374151;">' + data.total_trades + '</div>' + (data.total_signals ? '<div style="font-size: 10px; color: #9ca3af; margin-top: 5px;">' + data.total_signals + ' signals</div>' : '') + (emaInfo ? '<div style="font-size: 10px; color: #9ca3af; margin-top: 3px;">' + emaInfo + '</div>' : '') + (rsiInfo ? '<div style="font-size: 10px; color: #f59e0b; margin-top: 3px;">' + rsiInfo + '</div>' : '') + '</div><div style="padding: 15px; background: white; border-radius: 8px; border: 1px solid #e5e7eb;"><div style="font-size: 11px; color: #6b7280; margin-bottom: 5px;">Win Rate</div><div style="font-size: 24px; font-weight: 700; color: #10b981;">' + data.win_rate + '%</div></div><div style="padding: 15px; background: white; border-radius: 8px; border: 1px solid #e5e7eb;"><div style="font-size: 11px; color: #6b7280; margin-bottom: 5px;">Winning</div><div style="font-size: 24px; font-weight: 700; color: #10b981;">' + data.winning_trades + '</div>' + (data.target_hits !== undefined ? '<div style="font-size: 10px; color: #9ca3af;">Target: ' + data.target_hits + '</div>' : '') + '</div><div style="padding: 15px; background: white; border-radius: 8px; border: 1px solid #e5e7eb;"><div style="font-size: 11px; color: #6b7280; margin-bottom: 5px;">Losing</div><div style="font-size: 24px; font-weight: 700; color: #ef4444;">' + data.losing_trades + '</div>' + (data.sl_hits !== undefined ? '<div style="font-size: 10px; color: #9ca3af;">SL: ' + data.sl_hits + '</div>' : '') + '</div><div style="padding: 15px; background: white; border-radius: 8px; border: 1px solid #e5e7eb;"><div style="font-size: 11px; color: #6b7280; margin-bottom: 5px;">Total Profit' + lotsLabel + '</div><div style="font-size: 24px; font-weight: 700; color: ' + (data.total_profit >= 0 ? '#10b981' : '#ef4444') + ';">' + (data.total_profit >= 0 ? '+' : '') + data.total_profit.toFixed(2) + '</div></div><div style="padding: 15px; background: white; border-radius: 8px; border: 1px solid #e5e7eb;"><div style="font-size: 11px; color: #6b7280; margin-bottom: 5px;">Days (data used)</div><div style="font-size: 20px; font-weight: 700;">' + (data.days_covered != null ? data.days_covered : (data.days_requested || days)) + '</div><div style="font-size: 10px; color: #9ca3af;">' + daysSub + '</div>' + daysLimitedNote + '</div>';
                     if (data.trades && data.trades.length > 0) {
                         tradesDiv.innerHTML = '<div style="font-size: 14px; font-weight: 600; color: #374151; margin-bottom: 10px;">Recent Trades</div>' + data.trades.map(function(trade) {
                             var entryDate = new Date(trade.entry_time).toLocaleString();
